@@ -1,0 +1,46 @@
+
+
+// File: src/main/java/com/attendanceiq/api/services/UserService.java
+package main.java.com.attendanceiq.api.services;
+
+import main.java.com.attendanceiq.api.dto.UserDto;
+import main.java.com.attendanceiq.api.dto.UserProfileUpdateRequest;
+import main.java.com.attendanceiq.api.models.User;
+import main.java.com.attendanceiq.api.repositories.UserRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+@RequiredArgsConstructor
+public class UserService {
+    private final UserRepository userRepository;
+
+    public UserDto convertToDto(User user) {
+        return UserDto.builder()
+                .id(user.getId())
+                .username(user.getUsername())
+                .email(user.getEmail())
+                .firstName(user.getFirstName())
+                .lastName(user.getLastName())
+                .role(user.getRole())
+                .build();
+    }
+
+    @Transactional
+    public UserDto updateProfile(User user, UserProfileUpdateRequest request) {
+        user.setFirstName(request.getFirstName());
+        user.setLastName(request.getLastName());
+        
+        // If email is changed, ensure it's unique
+        if (!user.getEmail().equals(request.getEmail())) {
+            if (userRepository.existsByEmail(request.getEmail())) {
+                throw new IllegalArgumentException("Email already in use");
+            }
+            user.setEmail(request.getEmail());
+        }
+        
+        User savedUser = userRepository.save(user);
+        return convertToDto(savedUser);
+    }
+}

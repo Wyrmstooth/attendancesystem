@@ -1,0 +1,114 @@
+
+// File: src/main/java/com/attendanceiq/api/services/SessionService.java
+package com.attendanceiq.api.services;
+
+import com.attendanceiq.api.dto.AttendanceRecordDto;
+import com.attendanceiq.api.dto.ClassSessionDto;
+import com.attendanceiq.api.dto.SaveAttendanceRequest;
+import com.attendanceiq.api.models.*;
+import com.attendanceiq.api.repositories.AttendanceRecordRepository;
+import com.attendanceiq.api.repositories.ClassSessionRepository;
+import com.attendanceiq.api.repositories.CourseRepository;
+import com.attendanceiq.api.repositories.StudentRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+public class SessionService {
+    private final ClassSessionRepository sessionRepository;
+    private final CourseRepository courseRepository;
+    private final StudentRepository studentRepository;
+    private final AttendanceRecordRepository attendanceRepository;
+    private final NotificationService notificationService;
+
+    public List<ClassSessionDto> getCourseSession(Long courseId) {
+        Course course = courseRepository.findById(courseId)
+                .orElseThrow(() -> new IllegalArgumentException("Course not found"));
+        
+        return sessionRepository.findByCourse(course).stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+
+    public ClassSessionDto getSessionById(Long sessionId) {
+        return convertToDto(sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new IllegalArgumentException("Session not found")));
+    }
+
+    public List<AttendanceRecordDto> getSessionAttendance(Long sessionId) {
+        ClassSession session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new IllegalArgumentException("Session not found"));
+        
+        return attendanceRepository.findBySession(session).stream()
+                .map(this::convertToAttendanceDto)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public void saveAttendance(Long sessionId, SaveAttendanceRequest request, User instructor) {
+        ClassSession session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new IllegalArgumentException("Session not found"));
+        
+        // Remove existing records
+        List<AttendanceRecord> existingRecords = attendanceRepository.findBySession(session);
+        attendanceRepository.deleteAll(existingRecords);
+        
+        // Create new records
+        List<AttendanceRecord> newRecords = new ArrayList<>();
+        
+        for (AttendanceRecordDto recordDto : request.getRecords()) {
+            Student student = studentRepository.findById(recordDto.getStudentId())
+                    .orElseThrow(() -> new IllegalArgumentException("Student not found"));
+            
+            AttendanceRecord record = AttendanceRecord.builder()
+                    .session(session)
+                    .student(student)
+                    .status(recordDto.getStatus())
+                    .timestamp(LocalDateTime.now())
+                    .markedBy(instructor)
+                    .build();
+            
+            newRecords.add(record);
+            
+            // Send notification for absent students
+            if (recordDto.getStatus() == AttendanceStatus.ABSENT) {
+                notificationService.createAttendanceNotification(student.getUser(), session);
+                
+                // If student has a parent linked, notify them too
+                // This would require additional parent-student relationship logic
+            }
+        }
+        
+        attendanceRepository.saveAll(newRecords);
+    }
+
+    private ClassSessionDto convertToDto(ClassSession session) {
+        return ClassSessionDto.builder()
+                .id(session.getId())
+                .courseId(session.getCourse().getId())
+                .courseName(session.getCourse().getName())
+                .date(session.getDate())
+                .startTime(session.getStartTime())
+                .endTime(session.getEndTime())
+                .location(session.getLocation())
+                .build();
+    }
+
+    private AttendanceRecordDto convertToAttendanceDto(AttendanceRecord record) {
+        return AttendanceRecordDto.builder()
+                .id(record.getId())
+                .sessionId(record.getSession().getId())
+                .studentId(record.getStudent().getId())
+                .status(record.getStatus())
+                .timestamp(record.getTimestamp())
+                .markedById(record.getMarkedBy().getId())
+                .build();
+    }
+}
