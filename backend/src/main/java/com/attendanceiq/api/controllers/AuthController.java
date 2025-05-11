@@ -1,0 +1,43 @@
+// File: src/main/java/com/attendanceiq/api/controllers/AuthController.java
+package com.attendanceiq.api.controllers;
+
+import com.attendanceiq.api.dto.AdminRegistrationDto;
+import com.attendanceiq.api.dto.AuthRequest;
+import com.attendanceiq.api.dto.AuthResponse;
+import com.attendanceiq.api.dto.PasswordResetRequest;
+import com.attendanceiq.api.services.AuthService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import jakarta.validation.Valid;
+
+@RestController
+@RequestMapping({"/api/auth", "/auth"})
+@RequiredArgsConstructor
+public class AuthController {
+    private final AuthService authService;
+
+    @PostMapping("/login")
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody AuthRequest request) {
+        return ResponseEntity.ok(authService.authenticate(request));
+    }
+
+    @PostMapping("/register/admin")
+    public ResponseEntity<AuthResponse> registerAdmin(@Valid @RequestBody AdminRegistrationDto request) {
+        return ResponseEntity.ok(authService.registerAdmin(request));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@Valid @RequestBody PasswordResetRequest request) {
+        authService.initiatePasswordReset(request.getEmail());
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/login/instructor")
+    public ResponseEntity<AuthResponse> loginInstructor(@Valid @RequestBody AuthRequest request) {
+        return ResponseEntity.ok(authService.authenticateInstructor(request));
+    }
+}

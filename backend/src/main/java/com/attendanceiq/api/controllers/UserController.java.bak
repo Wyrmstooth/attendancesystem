@@ -1,0 +1,32 @@
+
+// File: src/main/java/com/attendanceiq/api/controllers/UserController.java
+package main.java.com.attendanceiq.api.controllers;
+
+import main.java.com.attendanceiq.api.dto.UserDto;
+import main.java.com.attendanceiq.api.dto.UserProfileUpdateRequest;
+import main.java.com.attendanceiq.api.models.User;
+import com.attendanceiq.api.services.UserService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/users")
+@RequiredArgsConstructor
+public class UserController {
+    private final UserService userService;
+
+    @GetMapping("/me")
+    public ResponseEntity<UserDto> getCurrentUser(@AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(userService.convertToDto(user));
+    }
+
+    @PutMapping("/profile")
+    public ResponseEntity<UserDto> updateProfile(
+            @AuthenticationPrincipal User user,
+            @RequestBody UserProfileUpdateRequest request
+    ) {
+        return ResponseEntity.ok(userService.updateProfile(user, request));
+    }
+}
