@@ -1,9 +1,0 @@
-// File: src/main/java/com/attendanceiq/api/models/AttendanceStatus.java
-package main.java.com.attendanceiq.api.models;
-
-public enum AttendanceStatus {
-    PRESENT,
-    ABSENT,
-    LATE,
-    EXCUSED
-}
